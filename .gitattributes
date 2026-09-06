@@ -1,0 +1,34 @@
+# Everything in this project is text, and all of it is read by tools that want
+# LF: the Netlify build, the Supabase SQL editor, node. Store LF in the repo and
+# check out LF everywhere, so a Windows clone and a Linux build agree byte for
+# byte and git stops warning about CRLF conversion.
+* text=auto eol=lf
+
+# Be explicit for the file types actually in here, so a future binary asset
+# added by mistake is easier to spot.
+*.html   text eol=lf
+*.css    text eol=lf
+*.js     text eol=lf
+*.mjs    text eol=lf
+*.json   text eol=lf
+*.md     text eol=lf
+*.sql    text eol=lf
+*.toml   text eol=lf
+.gitignore      text eol=lf
+.env.example    text eol=lf
+
+# Common assets, should any join the project later.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.webp   binary
+*.svg    text eol=lf
+*.ico    binary
+*.woff   binary
+*.woff2  binary
+*.mp3    binary
+*.m4a    binary
+
+# Generated: keep it out of diffs and reviews, but still versioned.
+package-lock.json linguist-generated=true -diff
