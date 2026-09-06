@@ -1,0 +1,14 @@
+{
+  "name": "chinese-chatbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Trilingual chatbox (中文 / English (GB) / Italiano) for learners of Chinese",
+  "type": "module",
+  "scripts": {
+    "start": "node server/server.mjs",
+    "test": "node test/engine.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0"
+  }
+}

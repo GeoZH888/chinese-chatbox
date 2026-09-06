@@ -1,0 +1,29 @@
+# The browser files are already static with no build step, so the repository
+# root is the publish directory as-is.
+[build]
+  publish = "."
+  command = ""
+  functions = "netlify/functions"
+
+# Never ship the server-mode sources or the tests to the CDN.
+[build.processing]
+  skip_processing = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # The page loads nothing from third parties. connect-src covers the three
+    # places it talks to: its own function, Supabase, and — only if you use the
+    # direct-from-browser mode — the Anthropic API. Drop the last one to make
+    # that mode impossible on the hosted site.
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://*.supabase.co https://api.anthropic.com; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'"
+
+[[headers]]
+  for = "/src/*"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
+
+[functions]
+  node_bundler = "esbuild"
