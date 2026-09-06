@@ -1,8 +1,11 @@
 # The browser files are already static with no build step, so the repository
 # root is the publish directory as-is.
 [build]
-  publish = "."
-  command = ""
+  # build.mjs copies exactly the files the browser needs into dist/, so
+  # node_modules, the local server, the tests and any stray .env can never
+  # reach the CDN.
+  publish = "dist"
+  command = "node build.mjs"
   functions = "netlify/functions"
 
 # Never ship the server-mode sources or the tests to the CDN.
