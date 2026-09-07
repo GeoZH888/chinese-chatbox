@@ -128,17 +128,14 @@
     list.scrollTop = list.scrollHeight;
   }
 
-  let pushTimer = null;
-  // Drills fire in bursts; one write a few seconds after the last answer is
-  // plenty, and it keeps a practice session to a handful of requests.
-  function schedulePush() {
-    if (!global.SYNC.enabled) return;
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(function () {
-      global.SYNC.push(engine.progress).catch(function (e) {
-        $('#account-status').textContent = t().syncFail + e.message;
-      });
-    }, 3000);
+  // One answer, one call: the platform logs the event and works out when this
+  // item is next due. Failures are silent on purpose — a dropped connection
+  // must never interrupt a drill, and local progress is already saved.
+  function reportAttempt(mode) {
+    const attempt = engine.takeAttempt();
+    if (!attempt || !global.SYNC.enabled) return;
+    global.SYNC.recordAttempt(attempt.item, attempt.verdict, mode)
+      .catch(function () { /* offline, or signed out */ });
   }
 
   function updateProgress() {
@@ -202,7 +199,7 @@
       },
       onEnd: function (final) {
         setListening(false);
-        if (final) send(final);
+        if (final) send(final, 'voice');
         else $('#voice-status').textContent = t().micNothing;
       },
       onError: function (kind) {
@@ -230,7 +227,7 @@
     return text.trim()[0] === '/' || !!engine.current;
   }
 
-  async function send(text) {
+  async function send(text, mode) {
     if (busy || !text.trim()) return;
     busy = true;
     stopListening();
@@ -254,7 +251,7 @@
         out.setFooter(r.footer);
         history.push({ role: 'assistant', text: r.text });
         updateProgress();
-        schedulePush();
+        reportAttempt(mode);
       } else {
         out.setText(t().thinking);
         out.setPending(true);
@@ -373,12 +370,11 @@
   async function syncProgress() {
     if (!global.SYNC.enabled) return;
     try {
-      const remote = await global.SYNC.pull();
+      const remote = await global.SYNC.pull('zh');
       if (!remote) return;
       engine.progress = global.SYNC.merge(engine.progress, remote);
       engine.saveProgress();
       updateProgress();
-      await global.SYNC.push(engine.progress);
       $('#account-status').textContent = t().syncOk;
     } catch (e) {
       $('#account-status').textContent = t().syncFail + e.message;
@@ -449,7 +445,7 @@
       e.preventDefault();
       const v = $('#input').value;
       $('#input').value = '';
-      send(v);
+      send(v, 'typed');
     });
 
     $('#input').addEventListener('keydown', function (e) {

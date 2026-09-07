@@ -167,7 +167,11 @@
     u.items.forEach(function (item, i) {
       item.unitId = u.id;
       item.unitTitle = u.title;
-      item.key = u.id + ':' + i;
+      item.position = i;
+      item.lang = 'zh';
+      item.kind = 'phrase';
+      // Keyed by what is practised, not where it sits — see src/identity.js.
+      item.key = global.IDENTITY.key(item.lang, item.kind, item.zh);
       ALL.push(item);
     });
   });

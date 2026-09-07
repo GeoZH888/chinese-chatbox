@@ -96,18 +96,30 @@ a public function with your key on it is an open relay — anyone who finds the 
 your credit — so the function rejects any request without a valid Supabase session, and
 `ALLOWED_EMAILS` can narrow it further to the learners you name.
 
-### 1. Supabase
+### 1. Supabase — the shared learner platform
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. SQL Editor → New query → paste `supabase/schema.sql` → Run. That creates the
-   `progress` table with row level security, so each learner reads and writes only
-   their own rows.
+This app stores progress on a Supabase project shared by all the language-learning
+apps, so practice compounds across them (see *The shared platform* below).
+
+1. Create a project at [supabase.com](https://supabase.com), or use the existing one.
+2. SQL Editor → New query → paste `supabase/schema.sql` → Run. Safe to re-run.
 3. Authentication → URL Configuration → add your Netlify site URL under **Site URL**
    and **Redirect URLs** (add `http://localhost:8787` too, for local testing).
    Email sign-in is on by default; no password is used, only a magic link.
 4. Project Settings → API → copy the **Project URL** and the **anon** key into
    `src/config.js`. Both are meant to be public — RLS is what protects the data.
    Never put the `service_role` key in there.
+
+Because the anon key is public, **every table in that project must have RLS enabled**.
+Audit it with:
+
+```sql
+select c.relname as table_name, c.relrowsecurity as rls_enabled, count(p.polname) as policies
+from pg_class c join pg_namespace n on n.oid = c.relnamespace
+left join pg_policy p on p.polrelid = c.oid
+where n.nspname = 'public' and c.relkind = 'r'
+group by 1,2 order by rls_enabled, 1;
+```
 
 ### 2. Netlify
 
@@ -163,6 +175,48 @@ Deploy without setting `ANTHROPIC_API_KEY`. The site still serves the full offli
 phrasebook, drills, voice, all three languages — and nothing can cost you money. Supabase
 sign-in still syncs progress if you configure it.
 
+
+## The shared platform
+
+Progress does not belong to this app. It belongs to the learner, and lives in a
+Supabase project shared by every language-learning app, so that a phrase drilled
+in one app is the same phrase in the next and scheduling sees the whole picture.
+
+The key idea: **the item is shared, not the app's table.**
+
+| Table | Holds | Visible to |
+|---|---|---|
+| `learning_items` | canonical items, keyed by `lang` + normalized content | every signed-in learner (read, and add) |
+| `learner_state` | per learner per item: counts, ease, interval, `due_at` | its owner only |
+| `learning_events` | every attempt, tagged with the app that saw it | its owner only |
+
+Identity is content, not position: `你好`, `你好。` and ` 你 好 ` are one item.
+`normalize_content()` in Postgres decides that, and [src/identity.js](src/identity.js)
+mirrors it so the offline tutor keys local progress the same way. This is why a
+curriculum can be reordered without resetting anyone's progress.
+
+Apps never write these tables directly. They call three functions:
+
+```sql
+record_attempt(p_lang, p_kind, p_content, p_verdict, p_app, p_mode, p_reading, p_glosses)
+learner_snapshot(p_lang)          -- everything practised, for merging into local state
+due_items(p_lang, p_limit)        -- what to review now, across every app
+```
+
+`record_attempt` resolves the item, writes the event and advances the schedule in
+one round trip, so **every app schedules identically** — none of them can drift into
+its own spaced-repetition maths. Verdicts are `right`, `partial` (right syllables,
+tones not marked), `tones`, `wrong`, `skip`, `seen`.
+
+**To adopt this in another app:** call `record_attempt` with your own `p_app` name
+and the content the learner practised. Nothing else is required — no table of your
+own, no migration. Read `due_items` when you want the platform to choose what to
+practise next.
+
+The event log is what makes better scheduling possible later: because every attempt
+is kept, a future algorithm can be recomputed over real history rather than starting
+from nothing.
+
 ## Content
 
 Eight units, 66 phrases: greetings, introducing yourself, numbers and money, ordering
@@ -184,11 +238,12 @@ src/prompt.js       the tutor's system prompt (shared by both AI modes)
 src/voice.js        speech in (recognition) and out (synthesis)
 src/providers.js    offline / direct / server transports
 src/config.js       Supabase URL + anon key (empty = no accounts, no sync)
-src/sync.js         magic-link sign-in and progress sync, over plain fetch
+src/identity.js     how an item is identified, mirrored from the SQL
+src/sync.js         magic-link sign-in and the shared-platform RPCs
 src/app.js          UI wiring
 server/server.mjs   static server + streaming proxy to the Claude API
 netlify/functions/  the same proxy as a Netlify function, behind sign-in
-supabase/schema.sql the progress table and its row level security
+supabase/schema.sql the shared learner platform: items, state, events, RPCs
 test/               engine tests
 ```
 

@@ -93,9 +93,18 @@
   const STORE_KEY = 'chatbox.progress.v1';
 
   function loadProgress() {
+    let saved;
     try {
-      return JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {};
+      saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {};
     } catch (e) { return {}; }
+    // Progress used to be keyed by curriculum position ('greetings:7'). Those
+    // keys mean nothing now that identity is content-based, and counting them
+    // would overstate how much has been practised, so drop them.
+    const clean = {};
+    Object.keys(saved).forEach(function (k) {
+      if (k.indexOf('|') > 0) clean[k] = saved[k];
+    });
+    return clean;
   }
 
   function saveProgress(p) {
@@ -108,8 +117,16 @@
     this.c = curriculum;
     this.unitId = null;       // null = draw from every unit
     this.current = null;      // item being drilled
+    this.lastAttempt = null;  // {item, verdict} — the app forwards this to the platform
     this.progress = loadProgress();
   }
+
+  // Read and clear, so one answer is never logged twice.
+  Engine.prototype.takeAttempt = function () {
+    const a = this.lastAttempt;
+    this.lastAttempt = null;
+    return a;
+  };
 
   // Exposed so a sync layer can replace `progress` wholesale and persist it.
   Engine.prototype.saveProgress = function () {
@@ -277,6 +294,7 @@
         const item = this.current;
         this.current = null;
         this.record(item.key, false);
+        this.lastAttempt = { item: item, verdict: 'skip' };
         return { text: T.skipped, cards: [item], footer: T.nextHint };
       }
 
@@ -293,6 +311,9 @@
     if (this.current) {
       const item = this.current;
       const verdict = this.check(raw, item);
+      // Verdicts in the platform's vocabulary (supabase/schema.sql).
+      const PLATFORM = { right: 'right', pinyin: 'partial', tones: 'tones', wrong: 'wrong' };
+      if (verdict !== 'tones') this.lastAttempt = { item: item, verdict: PLATFORM[verdict] };
       if (verdict === 'right') {
         this.current = null;
         this.record(item.key, true);

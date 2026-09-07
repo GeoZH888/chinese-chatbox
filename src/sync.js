@@ -126,58 +126,83 @@
     writeSession(null);
   }
 
-  /* ---------- progress ---------- */
+  /* ---------- the shared learner platform ---------- */
 
-  async function pull() {
+  // Every app on the platform records answers the same way: one RPC that
+  // resolves the item, logs the event and advances the schedule. The maths
+  // lives in Postgres (see supabase/schema.sql), so no app can drift from it.
+  const APP_NAME = 'chinese-chatbox';
+
+  async function rpc(fn, body) {
     const t = await token();
     if (!t) return null;
-    const rows = await api('/rest/v1/chatbox_progress?select=item_key,right_count,wrong_count', {
-      headers: { authorization: 'Bearer ' + t }
+    return api('/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + t },
+      body: JSON.stringify(body || {})
     });
+  }
+
+  // verdict: 'right' | 'partial' | 'tones' | 'wrong' | 'skip' | 'seen'
+  async function recordAttempt(item, verdict, mode) {
+    if (!enabled) return null;
+    return rpc('record_attempt', {
+      p_lang: item.lang || 'zh',
+      p_kind: item.kind || 'phrase',
+      p_content: item.zh,
+      p_verdict: verdict,
+      p_app: APP_NAME,
+      p_mode: mode || null,
+      p_reading: item.py || null,
+      p_glosses: { en: item.en, it: item.it }
+    });
+  }
+
+  // Everything this learner has practised in Chinese, in any app on the
+  // platform — keyed the same way the offline tutor keys its local progress.
+  async function pull(lang) {
+    const rows = await rpc('learner_snapshot', { p_lang: lang || 'zh' });
+    if (!rows) return null;
     const out = {};
-    (rows || []).forEach(function (r) {
-      out[r.item_key] = { right: r.right_count || 0, wrong: r.wrong_count || 0 };
+    rows.forEach(function (r) {
+      const key = global.IDENTITY.key(lang || 'zh', 'phrase', r.content);
+      out[key] = { right: r.right_count || 0, wrong: r.wrong_count || 0, due: r.due_at || null };
     });
     return out;
   }
 
-  async function push(progress) {
-    const t = await token();
-    if (!t) return false;
-    const rows = Object.keys(progress || {}).map(function (k) {
-      return { item_key: k, right_count: progress[k].right || 0, wrong_count: progress[k].wrong || 0 };
-    });
-    if (!rows.length) return true;
-    await api('/rest/v1/chatbox_progress', {
-      method: 'POST',
-      headers: { authorization: 'Bearer ' + t, Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify(rows)
-    });
-    return true;
+  // What the platform thinks is due now, across every app.
+  async function due(lang, limit) {
+    const rows = await rpc('due_items', { p_lang: lang || 'zh', p_limit: limit || 20 });
+    return rows || [];
   }
 
-  // Two devices drilling the same phrase both count: keep the higher tally on
-  // each side rather than letting the last writer erase the other's practice.
+  // Local practice done while signed out still counts: keep the higher tally on
+  // each side rather than letting one device erase the other's work.
   function merge(local, remote) {
     const out = {};
-    Object.keys(local || {}).forEach(function (k) { out[k] = { right: local[k].right, wrong: local[k].wrong }; });
+    Object.keys(local || {}).forEach(function (k) {
+      out[k] = { right: local[k].right, wrong: local[k].wrong };
+    });
     Object.keys(remote || {}).forEach(function (k) {
       const a = out[k] || { right: 0, wrong: 0 };
       const b = remote[k];
-      out[k] = { right: Math.max(a.right, b.right), wrong: Math.max(a.wrong, b.wrong) };
+      out[k] = { right: Math.max(a.right, b.right), wrong: Math.max(a.wrong, b.wrong), due: b.due };
     });
     return out;
   }
 
   global.SYNC = {
     enabled: enabled,
+    app: APP_NAME,
     consumeRedirect: consumeRedirect,
     token: token,
     whoami: whoami,
     sendLink: sendLink,
     signOut: signOut,
+    recordAttempt: recordAttempt,
     pull: pull,
-    push: push,
+    due: due,
     merge: merge,
     email: function () { const s = readSession(); return (s && s.email) || ''; }
   };

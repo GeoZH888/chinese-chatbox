@@ -9,12 +9,13 @@ globalThis.localStorage = {
   getItem(k) { return this._d[k] ?? null; },
   setItem(k, v) { this._d[k] = String(v); }
 };
+await import('../src/identity.js');
 await import('../src/i18n.js');
 await import('../src/curriculum.js');
 await import('../src/tutor.js');
 await import('../src/prompt.js');
 
-const { CURRICULUM, TUTOR, I18N, TUTOR_SYSTEM_PROMPT } = globalThis;
+const { CURRICULUM, TUTOR, I18N, IDENTITY, TUTOR_SYSTEM_PROMPT } = globalThis;
 
 // Each test gets its own progress, so drills picked at random cannot leak
 // scores from one test into the next.
@@ -158,4 +159,68 @@ test('a known but unrelated phrase during a drill is answered, not marked', () =
   assert.equal(e.current.key, key, 'and on the same item');
   assert.equal(e.progress[key], undefined, 'no score change');
   assert.match(res.text, /different phrase/);
+});
+
+test('items are identified by content, not by curriculum position', () => {
+  const hello = CURRICULUM.all.find((i) => i.zh === '你好');
+  assert.equal(hello.key, 'zh|phrase|你好');
+  // Punctuation, case and spacing must not change identity — the server's
+  // normalize_content() does the same, so both agree on what an item is.
+  assert.equal(IDENTITY.key('zh', 'phrase', '你好。'), hello.key);
+  assert.equal(IDENTITY.key('zh', 'phrase', ' 你  好 '), hello.key);
+  assert.equal(IDENTITY.normalize('Ciao, come va?'), 'ciaocomeva');
+  // Keys survive a unit being reordered, which position-based keys would not.
+  assert.ok(CURRICULUM.all.every((i) => i.key.startsWith('zh|phrase|')));
+});
+
+test('every answer produces one attempt in the platform vocabulary', () => {
+  const e = freshEngine();
+  const verdicts = [];
+  const answerWith = (make) => {
+    e.respond('/drill', 'en');
+    const item = e.current;
+    e.respond(make(item), 'en');
+    const a = e.takeAttempt();
+    if (a) verdicts.push(a.verdict);
+    return a;
+  };
+
+  const right = answerWith((i) => i.zh);
+  assert.equal(right.verdict, 'right');
+  assert.equal(right.item.lang, 'zh');
+
+  const partial = answerWith((i) => TUTOR.normLatin(i.py));
+  assert.equal(partial.verdict, 'partial');   // pinyin, no tones marked
+
+  const wrong = answerWith(() => '完全不对的句子');
+  assert.equal(wrong.verdict, 'wrong');
+
+  e.respond('/drill', 'en');
+  e.respond('/skip', 'en');
+  assert.equal(e.takeAttempt().verdict, 'skip');
+
+  // Reading clears it, so one answer can never be logged twice.
+  assert.equal(e.takeAttempt(), null);
+  assert.deepEqual(verdicts, ['right', 'partial', 'wrong']);
+});
+
+test('a tone slip keeps the drill open and is not logged as a result', () => {
+  const e = freshEngine();
+  const hello = CURRICULUM.all.find((i) => i.zh === '你好');
+  e.unitId = 'greetings';
+  e.current = hello;
+  const res = e.respond('ní hào', 'en');
+  assert.equal(res.drill, true);
+  assert.equal(e.current, hello, 'still the same prompt');
+  assert.equal(e.takeAttempt(), null, 'nothing recorded until they settle on an answer');
+});
+
+test('progress saved under the old position keys is discarded, not counted', () => {
+  globalThis.localStorage._d['chatbox.progress.v1'] = JSON.stringify({
+    'greetings:7': { right: 3, wrong: 0 },          // old format
+    'zh|phrase|你好': { right: 2, wrong: 1 }         // current format
+  });
+  const e = new TUTOR.Engine(CURRICULUM);
+  assert.deepEqual(Object.keys(e.progress), ['zh|phrase|你好']);
+  assert.equal(e.score('zh|phrase|你好').right, 2);
 });
