@@ -288,6 +288,8 @@ button.wide {
   background: var(--bg); color: var(--ink);
 }
 button.wide:disabled { opacity: .5; }
+button.wide.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.hint { margin: 8px 0 14px; font-size: 12.5px; color: var(--muted); }
 .signed-in { margin: 0 0 10px; font-size: 14px; }
 .account-status:not(:empty) {
   margin: 10px 0 0; font-size: 12.5px; color: var(--muted);

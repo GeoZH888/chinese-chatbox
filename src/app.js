@@ -321,6 +321,9 @@
     $('#account-title').textContent = s.account;
     $('#email-label').textContent = s.emailLabel;
     $('#send-link').textContent = s.sendLink;
+    $('#password-label').textContent = s.passwordLabel;
+    $('#sign-in').textContent = s.signIn;
+    $('#password-hint').textContent = s.passwordHint;
     $('#sign-out').textContent = s.signOut;
     $('#settings-close').textContent = s.close;
     $('#chip-lessons').textContent = s.chipLessons;
@@ -468,6 +471,31 @@
       if (run) global.VOICE.speak(run.textContent, 'zh');
     });
 
+    $('#sign-in').addEventListener('click', async function () {
+      const email = $('#email').value.trim();
+      const password = $('#password').value;
+      if (!email || !password) return;
+      $('#sign-in').disabled = true;
+      try {
+        const user = await global.SYNC.signInWithPassword(email, password);
+        // Never keep the password around once it has been exchanged for tokens.
+        $('#password').value = '';
+        renderAccount((user && user.email) || email);
+        $('#account-status').textContent = '';
+        await syncProgress();
+      } catch (e) {
+        $('#account-status').textContent = t().signInFail + e.message;
+      } finally {
+        $('#sign-in').disabled = false;
+      }
+    });
+
+    ['#email', '#password'].forEach(function (sel) {
+      $(sel).addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); $('#sign-in').click(); }
+      });
+    });
+
     $('#send-link').addEventListener('click', async function () {
       const email = $('#email').value.trim();
       if (!email) return;
@@ -495,6 +523,7 @@
     $('#settings-btn').addEventListener('click', openSettings);
     $('#settings-close').addEventListener('click', function () { $('#settings').close(); });
     $('#settings').addEventListener('close', function () {
+      $('#password').value = '';
       state.mode = $('#mode').value;
       state.apiKey = $('#api-key').value.trim();
       state.serverUrl = $('#server-url').value.trim() || 'http://localhost:8787';

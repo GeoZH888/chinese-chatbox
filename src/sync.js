@@ -107,6 +107,27 @@
     }
   }
 
+  // Email + password. Many accounts on this project are credential logins whose
+  // address is an identifier rather than a mailbox, so a magic link can never
+  // reach them; this is the path those accounts use.
+  //
+  // The password is passed straight to Supabase and never stored — only the
+  // tokens it returns are kept, exactly as with the magic link.
+  async function signInWithPassword(email, password) {
+    if (!enabled) throw new Error('sync-disabled');
+    const data = await api('/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      body: JSON.stringify({ email: email, password: password })
+    });
+    writeSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + (Number(data.expires_in || 3600) * 1000),
+      email: (data.user && data.user.email) || email
+    });
+    return data.user || null;
+  }
+
   async function sendLink(email) {
     if (!enabled) throw new Error('sync-disabled');
     const redirect = global.location.origin + global.location.pathname;
@@ -198,6 +219,7 @@
     consumeRedirect: consumeRedirect,
     token: token,
     whoami: whoami,
+    signInWithPassword: signInWithPassword,
     sendLink: sendLink,
     signOut: signOut,
     recordAttempt: recordAttempt,

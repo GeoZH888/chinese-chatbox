@@ -100,7 +100,13 @@
         <span id="email-label">Email address</span>
         <input id="email" type="email" autocomplete="email" spellcheck="false" placeholder="you@example.com">
       </label>
-      <button id="send-link" class="wide" type="button">Send sign-in link</button>
+      <label class="field">
+        <span id="password-label">Password</span>
+        <input id="password" type="password" autocomplete="current-password">
+      </label>
+      <button id="sign-in" class="wide primary" type="button">Sign in</button>
+      <p id="password-hint" class="hint"></p>
+      <button id="send-link" class="wide" type="button">Email me a link instead</button>
     </div>
     <div id="account-in" hidden>
       <p id="signed-in" class="signed-in"></p>
