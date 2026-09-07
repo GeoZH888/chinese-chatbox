@@ -146,7 +146,7 @@
   // verdict: 'right' | 'partial' | 'tones' | 'wrong' | 'skip' | 'seen'
   async function recordAttempt(item, verdict, mode) {
     if (!enabled) return null;
-    return rpc('record_attempt', {
+    return rpc('chatbox_record_attempt', {
       p_lang: item.lang || 'zh',
       p_kind: item.kind || 'phrase',
       p_content: item.zh,
@@ -161,7 +161,7 @@
   // Everything this learner has practised in Chinese, in any app on the
   // platform — keyed the same way the offline tutor keys its local progress.
   async function pull(lang) {
-    const rows = await rpc('learner_snapshot', { p_lang: lang || 'zh' });
+    const rows = await rpc('chatbox_snapshot', { p_lang: lang || 'zh' });
     if (!rows) return null;
     const out = {};
     rows.forEach(function (r) {
@@ -173,7 +173,7 @@
 
   // What the platform thinks is due now, across every app.
   async function due(lang, limit) {
-    const rows = await rpc('due_items', { p_lang: lang || 'zh', p_limit: limit || 20 });
+    const rows = await rpc('chatbox_due_items', { p_lang: lang || 'zh', p_limit: limit || 20 });
     return rows || [];
   }
 

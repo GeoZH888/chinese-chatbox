@@ -183,12 +183,19 @@ Two layers live in the one Supabase project, and every app uses both:
 | Layer | Tables | Who reads | Who writes |
 |---|---|---|---|
 | **Content** | poems, idioms, diagrams, assets | anyone, signed in or not | listed admins only |
-| **Learner** | `learning_items`, `learner_state`, `learning_events` | each learner, their own rows | each learner, via `record_attempt()` |
+| **Learner** | `chatbox_items`, `chatbox_state`, `chatbox_events` | each learner, their own rows | each learner, via `chatbox_record_attempt()` |
 
 `supabase/content_security.sql` establishes the content layer's access model:
 public reads, admin-gated writes, enforced by row level security rather than by
 each app remembering to behave. `supabase/schema.sql` establishes the learner
 layer below.
+
+**Why the `chatbox_` prefix.** These tables were first written as *the* shared
+platform, assuming no learner layer existed. One does — the main app has
+`clf_user_learning_state`, `clf_learning_events`, `clf_attempts` and others. The
+design here still stands, but the generic names were claimed on a wrong premise,
+so they are given back until that reconciliation is decided. See
+`UNIFIED_CONTENT_PLAN.md` and `tools/audit-supabase-usage.mjs`.
 
 
 Progress does not belong to this app. It belongs to the learner, and lives in a
@@ -199,9 +206,9 @@ The key idea: **the item is shared, not the app's table.**
 
 | Table | Holds | Visible to |
 |---|---|---|
-| `learning_items` | canonical items, keyed by `lang` + normalized content | every signed-in learner (read, and add) |
-| `learner_state` | per learner per item: counts, ease, interval, `due_at` | its owner only |
-| `learning_events` | every attempt, tagged with the app that saw it | its owner only |
+| `chatbox_items` | canonical items, keyed by `lang` + normalized content | every signed-in learner (read, and add) |
+| `chatbox_state` | per learner per item: counts, ease, interval, `due_at` | its owner only |
+| `chatbox_events` | every attempt, tagged with the app that saw it | its owner only |
 
 Identity is content, not position: `你好`, `你好。` and ` 你 好 ` are one item.
 `normalize_content()` in Postgres decides that, and [src/identity.js](src/identity.js)
@@ -211,19 +218,19 @@ curriculum can be reordered without resetting anyone's progress.
 Apps never write these tables directly. They call three functions:
 
 ```sql
-record_attempt(p_lang, p_kind, p_content, p_verdict, p_app, p_mode, p_reading, p_glosses)
-learner_snapshot(p_lang)          -- everything practised, for merging into local state
-due_items(p_lang, p_limit)        -- what to review now, across every app
+chatbox_record_attempt(p_lang, p_kind, p_content, p_verdict, p_app, p_mode, p_reading, p_glosses)
+chatbox_snapshot(p_lang)          -- everything practised, for merging into local state
+chatbox_due_items(p_lang, p_limit)  -- what to review now
 ```
 
-`record_attempt` resolves the item, writes the event and advances the schedule in
+`chatbox_record_attempt` resolves the item, writes the event and advances the schedule in
 one round trip, so **every app schedules identically** — none of them can drift into
 its own spaced-repetition maths. Verdicts are `right`, `partial` (right syllables,
 tones not marked), `tones`, `wrong`, `skip`, `seen`.
 
-**To adopt this in another app:** call `record_attempt` with your own `p_app` name
+**To adopt this in another app:** call `chatbox_record_attempt` with your own `p_app` name
 and the content the learner practised. Nothing else is required — no table of your
-own, no migration. Read `due_items` when you want the platform to choose what to
+own, no migration. Read `chatbox_due_items` when you want it to choose what to
 practise next.
 
 The event log is what makes better scheduling possible later: because every attempt
@@ -256,8 +263,10 @@ src/sync.js         magic-link sign-in and the shared-platform RPCs
 src/app.js          UI wiring
 server/server.mjs   static server + streaming proxy to the Claude API
 netlify/functions/  the same proxy as a Netlify function, behind sign-in
-supabase/schema.sql the shared learner platform: items, state, events, RPCs
+supabase/schema.sql the chatbox learner tables: items, state, events, RPCs
+supabase/00_drop_generic_platform_names.sql  releases the old generic names
 supabase/content_security.sql  locks the shared content libraries down
+tools/audit-supabase-usage.mjs  portable Supabase usage auditor
 test/               engine tests
 ```
 
