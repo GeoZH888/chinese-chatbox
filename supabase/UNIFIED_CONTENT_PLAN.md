@@ -1,10 +1,43 @@
 # Unified content layer — migration plan
 
-Status: proposed, nothing executed. Audit figures were read live from project
+> ## ⚠ ON HOLD — the premise below is wrong
+>
+> This plan assumed `clf_` and `jgw_` were two apps with two content libraries.
+> They are not. Searching the deployed bundles of `zhongwen-allinone`,
+> `david-zhongwen` and `lingua-school` shows both prefixes used by **the same
+> app**: `clf_` is the learning-content and school subsystem (~70 tables),
+> `jgw_` is the points, practice and pinyin subsystem (~20 tables).
+>
+> Consequences:
+>
+> 1. **There is no duplicate content library to unify.** `clf_poems` and
+>    `clf_chengyu` are live; `jgw_poems` (1 row), `jgw_articulation_diagrams`
+>    (1 row) and `clf_panda_assets` (0 rows) are referenced by no deployed app
+>    and look like abandoned test tables. The "two editions of 静夜思" that drove
+>    the design in §2 is one live poem and one dead test row.
+> 2. **A learner-progress layer already exists**: `clf_user_learning_state`,
+>    `clf_learning_events`, `clf_attempts`, `clf_chengyu_progress`,
+>    `clf_grammar_progress`, `clf_lianzi_progress`, `jgw_progress`,
+>    `jgw_practice_log` — all RLS-protected. The `learning_items` /
+>    `learner_state` / `learning_events` tables in `schema.sql` parallel it
+>    rather than extend it, and would become a second competing progress system.
+>
+> What remains valid: the security work in `content_security.sql`, and the
+> general principle that identity should be content-based and shared. What needs
+> redoing: deciding whether the shared platform extends the existing `clf_`
+> schema or replaces it — a decision that needs the `zhongwen-allinone` codebase
+> in front of us, not guesswork from table names.
+>
+> Kept for the schema patterns and the phased-migration method, both of which
+> still apply to whatever replaces it.
+
+---
+
+Status: superseded. Audit figures were read live from project
 `yqcojudvvjntaajnrilr`.
 
-Settled: **`jsonb` for translations**, **slugs as the public identifier**.
-Revised: editions are **not** split by audience — see §2.
+Settled at the time: **`jsonb` for translations**, **slugs as the public
+identifier**. Editions were **not** split by audience — see §2.
 
 ## 1. What is actually there
 
