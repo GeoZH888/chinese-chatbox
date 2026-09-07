@@ -131,7 +131,7 @@
   async function pull() {
     const t = await token();
     if (!t) return null;
-    const rows = await api('/rest/v1/progress?select=item_key,right_count,wrong_count', {
+    const rows = await api('/rest/v1/chatbox_progress?select=item_key,right_count,wrong_count', {
       headers: { authorization: 'Bearer ' + t }
     });
     const out = {};
@@ -148,7 +148,7 @@
       return { item_key: k, right_count: progress[k].right || 0, wrong_count: progress[k].wrong || 0 };
     });
     if (!rows.length) return true;
-    await api('/rest/v1/progress', {
+    await api('/rest/v1/chatbox_progress', {
       method: 'POST',
       headers: { authorization: 'Bearer ' + t, Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify(rows)

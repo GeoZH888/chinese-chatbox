@@ -11,7 +11,7 @@
   'use strict';
 
   g.CHATBOX_CONFIG = {
-    SUPABASE_URL: '',      // e.g. 'https://abcdefgh.supabase.co'
-    SUPABASE_ANON_KEY: ''  // the project's anon / publishable key
+    SUPABASE_URL: 'https://yqcojudvvjntaajnrilr.supabase.co', // e.g. 'https://abcdefgh.supabase.co'
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxY29qdWR2dmpudGFham5yaWxyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDkxNzQsImV4cCI6MjA5MDkyNTE3NH0.pJuxsTRieYTnZtEysOLcPfUZ9Map0z74o2lKtc8uGAk' // the project's anon / publishable key
   };
 })(typeof window !== 'undefined' ? window : globalThis);

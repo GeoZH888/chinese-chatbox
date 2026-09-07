@@ -1,4 +1,9 @@
 node_modules/
+
+# every local env file except the template
 .env
+.env.*
+!.env.example
+
 .netlify/
 dist/

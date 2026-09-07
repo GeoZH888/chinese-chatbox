@@ -1,7 +1,9 @@
 -- Progress that follows the learner between devices.
+-- The table is namespaced because this Supabase project is shared with other
+-- apps; nothing here touches their tables.
 -- Run once, in the Supabase dashboard: SQL Editor -> New query -> paste -> Run.
 
-create table if not exists public.progress (
+create table if not exists public.chatbox_progress (
   user_id     uuid        not null default auth.uid() references auth.users (id) on delete cascade,
   item_key    text        not null,                      -- e.g. 'greetings:0', from src/curriculum.js
   right_count integer     not null default 0 check (right_count >= 0),
@@ -12,11 +14,11 @@ create table if not exists public.progress (
 
 -- Each learner sees and writes only their own rows. Without this, the anon key
 -- would expose everyone's progress to everyone.
-alter table public.progress enable row level security;
+alter table public.chatbox_progress enable row level security;
 
-drop policy if exists "progress is private to its owner" on public.progress;
-create policy "progress is private to its owner"
-  on public.progress
+drop policy if exists "chatbox_progress is private to its owner" on public.chatbox_progress;
+create policy "chatbox_progress is private to its owner"
+  on public.chatbox_progress
   for all
   to authenticated
   using (auth.uid() = user_id)
@@ -33,9 +35,9 @@ begin
 end;
 $$;
 
-drop trigger if exists progress_touch_updated_at on public.progress;
-create trigger progress_touch_updated_at
-  before insert or update on public.progress
+drop trigger if exists chatbox_progress_touch_updated_at on public.chatbox_progress;
+create trigger chatbox_progress_touch_updated_at
+  before insert or update on public.chatbox_progress
   for each row execute function public.touch_updated_at();
 
-create index if not exists progress_user_idx on public.progress (user_id);
+create index if not exists chatbox_progress_user_idx on public.chatbox_progress (user_id);
