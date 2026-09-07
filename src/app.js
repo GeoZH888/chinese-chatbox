@@ -476,7 +476,8 @@
         await global.SYNC.sendLink(email);
         $('#account-status').textContent = t().linkSent;
       } catch (e) {
-        $('#account-status').textContent = t().syncFail + e.message;
+        // A rejected address is a sign-in problem, not a sync problem.
+        $('#account-status').textContent = t().signInFail + e.message;
       } finally {
         $('#send-link').disabled = false;
       }

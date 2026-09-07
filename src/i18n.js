@@ -54,6 +54,7 @@
       syncDisabled: '未配置 Supabase，进度只保存在本机浏览器。',
       syncOk: '进度已同步。',
       syncFail: '同步失败：',
+      signInFail: '登录失败：',
       needSignIn: '请先登录，才能使用云端 AI 导师。',
       tutor: {
         welcome: '欢迎！我是你的中文导师。我可以用中文、英文、意大利文解释。\n输入 /课程 查看目录，/练习 开始造句练习，/帮助 查看全部指令。',
@@ -127,6 +128,7 @@
       syncDisabled: 'Supabase is not configured, so progress stays in this browser.',
       syncOk: 'Progress synced.',
       syncFail: 'Sync failed: ',
+      signInFail: 'Sign-in failed: ',
       needSignIn: 'Sign in to use the hosted AI tutor.',
       tutor: {
         welcome: 'Welcome. I am your Chinese tutor, and I explain in English, Italian or Chinese.\nType /units for the syllabus, /drill to practise, /help for every command.',
@@ -200,6 +202,7 @@
       syncDisabled: 'Supabase non è configurato: i progressi restano in questo browser.',
       syncOk: 'Progressi sincronizzati.',
       syncFail: 'Sincronizzazione fallita: ',
+      signInFail: 'Accesso non riuscito: ',
       needSignIn: 'Accedi per usare il tutor AI online.',
       tutor: {
         welcome: 'Benvenuto. Sono il tuo tutor di cinese e spiego in italiano, inglese o cinese.\nScrivi /units per il programma, /drill per esercitarti, /help per tutti i comandi.',
