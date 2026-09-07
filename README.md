@@ -178,6 +178,19 @@ sign-in still syncs progress if you configure it.
 
 ## The shared platform
 
+Two layers live in the one Supabase project, and every app uses both:
+
+| Layer | Tables | Who reads | Who writes |
+|---|---|---|---|
+| **Content** | poems, idioms, diagrams, assets | anyone, signed in or not | listed admins only |
+| **Learner** | `learning_items`, `learner_state`, `learning_events` | each learner, their own rows | each learner, via `record_attempt()` |
+
+`supabase/content_security.sql` establishes the content layer's access model:
+public reads, admin-gated writes, enforced by row level security rather than by
+each app remembering to behave. `supabase/schema.sql` establishes the learner
+layer below.
+
+
 Progress does not belong to this app. It belongs to the learner, and lives in a
 Supabase project shared by every language-learning app, so that a phrase drilled
 in one app is the same phrase in the next and scheduling sees the whole picture.
@@ -244,6 +257,7 @@ src/app.js          UI wiring
 server/server.mjs   static server + streaming proxy to the Claude API
 netlify/functions/  the same proxy as a Netlify function, behind sign-in
 supabase/schema.sql the shared learner platform: items, state, events, RPCs
+supabase/content_security.sql  locks the shared content libraries down
 test/               engine tests
 ```
 
